@@ -2,6 +2,8 @@ package com.example.stackexchange.diamondvideocall.ui.videocall
 
 import android.app.Activity
 import android.os.Bundle
+import android.os.Handler
+import android.os.Message
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
@@ -10,9 +12,11 @@ import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.ToggleButton
+import androidx.fragment.app.Fragment
 import com.example.stackexchange.diamondvideocall.R
 import com.example.stackexchange.diamondvideocall.interfaces.ConversationFragmentCallback
 import com.example.stackexchange.diamondvideocall.ui.base.BaseFragment
+import com.example.stackexchange.diamondvideocall.utils.VideoTrackCallBackListener
 import com.example.stackexchange.diamondvideocall.utils.WebRtcSessionManager
 import com.quickblox.videochat.webrtc.BaseSession
 import com.quickblox.videochat.webrtc.QBRTCClient
@@ -25,6 +29,7 @@ import com.quickblox.videochat.webrtc.view.QBRTCVideoTrack
 import org.webrtc.EglBase
 import org.webrtc.RendererCommon
 import org.webrtc.SurfaceViewRenderer
+import java.lang.ref.WeakReference
 
 class VideoCallFragment:BaseFragment(), View.OnClickListener,
     QBRTCClientVideoTracksCallbacks<QBRTCSession>,
@@ -32,16 +37,18 @@ class VideoCallFragment:BaseFragment(), View.OnClickListener,
     QBRTCSessionStateCallback<QBRTCSession>,
     QBRTCSessionConnectionCallbacks,
     QBRTCSignalingCallback {
-
     private var conversationFragmentCallback: ConversationFragmentCallback?= null
     private var isLocalVideoFullScreen: Boolean = false
+    private lateinit var mHandler : Handler
     lateinit var localVideoView: QBRTCSurfaceView
     var remoteFullScreenVideoView: QBRTCSurfaceView? = null
     lateinit var toggle_startChat: ToggleButton
     lateinit var toggle_hangUpCall: ToggleButton
     lateinit var localVideoTrack: QBRTCVideoTrack
     private var isCurrentCameraFront: Boolean = false
-    lateinit var currentsession: QBRTCSession
+    init {
+        mHandler =FragmentLifeCycleHandler(this)
+    }
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
         val view : View = inflater.inflate(R.layout.fragment_video_call,container,false)
         init(view)
@@ -73,9 +80,21 @@ class VideoCallFragment:BaseFragment(), View.OnClickListener,
         localVideoView.release()
         localVideoView.requestLayout()
         initCorrectSizeForLocalView()
-        //init session
-        currentsession = WebRtcSessionManager.getCurrentSession()!!
-        addListener()
+        mHandler.postDelayed({
+            startToCall()
+        }, 8000)
+
+    }
+    internal class FragmentLifeCycleHandler(fragment: Fragment) : Handler() {
+
+        private val fragmentRef: WeakReference<Fragment> = WeakReference(fragment)
+
+        override fun dispatchMessage(msg: Message) {
+            val fragment = fragmentRef.get() ?: return
+            if (fragment.isAdded && fragment.activity != null) {
+                super.dispatchMessage(msg)
+            }
+        }
     }
     fun initCorrectSizeForLocalView() {
         val params = localVideoView.layoutParams
@@ -88,18 +107,24 @@ class VideoCallFragment:BaseFragment(), View.OnClickListener,
         params?.height = height
         localVideoView.layoutParams = params
     }
+    fun startToCall(){
+        val localVideoTrack = conversationFragmentCallback!!.getLocalVideoTrack()
+        onLocalVideoTrackReceive(null,localVideoTrack)
+
+        val remoteVideoTrack : QBRTCVideoTrack = conversationFragmentCallback!!.getRemoteVideoTrack()
+        onRemoteVideoTrackReceive(null,remoteVideoTrack,1)
+    }
     fun addListener() {
-        currentsession.addVideoTrackCallbacksListener(this)
-        currentsession.addSessionCallbacksListener(this)
-        currentsession.addEventsCallback(this)
-        currentsession.addSignalingCallback(this)
+//        conversationFragmentCallback?.addSessionCallbacksListener(this)
+//        conversationFragmentCallback?.addSessionEventsListener(this)
+//        conversationFragmentCallback?.addVideoTrackListener(VideoTrackCallBackListener)
+
     }
 
     fun releaseCurrentSession() {
-        currentsession.removeSignalingCallback(this)
-        currentsession.removeSessionCallbacksListener(this)
-        QBRTCClient.getInstance(this.context).removeSessionsCallbacksListener(this)
-        currentsession.removeVideoTrackCallbacksListener(this)
+        conversationFragmentCallback?.removeSessionStateListener(this)
+        conversationFragmentCallback?.removeSessionEventsListener(this)
+        conversationFragmentCallback?.removeVideoTrackListener(this)
 
     }
     fun fillVideoView(videoView: QBRTCSurfaceView, videoTrack: QBRTCVideoTrack,
@@ -124,7 +149,7 @@ class VideoCallFragment:BaseFragment(), View.OnClickListener,
             }
         }
     }
-    override fun onLocalVideoTrackReceive(p0: QBRTCSession?, viewTrack : QBRTCVideoTrack?) {
+    override fun onLocalVideoTrackReceive(qbrtcSession: QBRTCSession?, viewTrack : QBRTCVideoTrack?) {
         if (viewTrack != null) {
             isLocalVideoFullScreen = true
             localVideoTrack = viewTrack!!
@@ -132,8 +157,7 @@ class VideoCallFragment:BaseFragment(), View.OnClickListener,
             isLocalVideoFullScreen = false
         }
     }
-
-    override fun onRemoteVideoTrackReceive(p0: QBRTCSession?, viewTrack: QBRTCVideoTrack?, p2: Int?) {
+    override fun onRemoteVideoTrackReceive(qbrtcSession: QBRTCSession?, viewTrack: QBRTCVideoTrack?, p2: Int?) {
         if (viewTrack != null) {
             fillVideoView(remoteFullScreenVideoView!!, viewTrack!!, true)
             updateVideoView(remoteFullScreenVideoView!!, false, RendererCommon.ScalingType.SCALE_ASPECT_FILL)
@@ -210,7 +234,11 @@ class VideoCallFragment:BaseFragment(), View.OnClickListener,
 
     override fun onDestroy() {
         super.onDestroy()
-        conversationFragmentCallback?.onHangUpCurrentSession()
+//        conversationFragmentCallback?.onHangUpCurrentSession()
+    }
+    override fun onStart() {
+        super.onStart()
+        addListener()
     }
 
 }

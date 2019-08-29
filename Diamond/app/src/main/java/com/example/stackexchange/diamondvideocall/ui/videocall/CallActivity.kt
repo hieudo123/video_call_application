@@ -14,11 +14,25 @@ import com.example.stackexchange.diamondvideocall.others.Constant.EXTRA_IS_INCOM
 import com.example.stackexchange.diamondvideocall.services.CallService
 import com.example.stackexchange.diamondvideocall.ui.base.BaseActivity
 import com.example.stackexchange.diamondvideocall.ui.recivecall.IncomeFragment
+import com.example.stackexchange.diamondvideocall.utils.SessionConnectCallBack
+import com.example.stackexchange.diamondvideocall.utils.VideoTrackCallBackListener
 import com.quickblox.chat.QBChatService
+import com.quickblox.videochat.webrtc.BaseSession
 import com.quickblox.videochat.webrtc.QBRTCSession
 import com.quickblox.videochat.webrtc.callbacks.QBRTCClientSessionCallbacks
+import com.quickblox.videochat.webrtc.callbacks.QBRTCClientVideoTracksCallbacks
+import com.quickblox.videochat.webrtc.callbacks.QBRTCSessionEventsCallback
+import com.quickblox.videochat.webrtc.callbacks.QBRTCSessionStateCallback
+import com.quickblox.videochat.webrtc.view.QBRTCVideoTrack
 
-class CallActivity : BaseActivity(),IncomeCallFragmentCallbackListener,QBRTCClientSessionCallbacks,ConversationFragmentCallback {
+class CallActivity : BaseActivity(),
+    IncomeCallFragmentCallbackListener,
+    QBRTCClientSessionCallbacks,
+    ConversationFragmentCallback,
+    QBRTCSessionStateCallback<QBRTCSession> {
+
+
+
     override fun onHangUpCurrentSession() {
         hangUpCurrentSession()
     }
@@ -38,7 +52,11 @@ class CallActivity : BaseActivity(),IncomeCallFragmentCallbackListener,QBRTCClie
         }
     }
     fun initScreen(){
-        startIncomeFragment()
+        if(SessionConnectCallBack.isCallMod())
+            startVideoCallFragment()
+        else
+            startIncomeFragment()
+        addLinteners()
     }
     fun startIncomeFragment(){
         addFragment(R.id.frmContainer,IncomeFragment(),false)
@@ -73,9 +91,20 @@ class CallActivity : BaseActivity(),IncomeCallFragmentCallbackListener,QBRTCClie
 
     override fun onPause() {
         unbindService(callServiceConnection)
+        if (::callService.isInitialized) {
+           removeListeners()
+        }
         super.onPause()
     }
 
+    private fun removeListeners() {
+        removeSessionEventsListener(this)
+        removeSessionStateListener(this)
+    }
+    private fun addLinteners(){
+        addSessionEventsListener(this)
+        addSessionCallbacksListener(this)
+    }
     override fun finish() {
         CallService.stop(this)
         super.finish()
@@ -89,17 +118,50 @@ class CallActivity : BaseActivity(),IncomeCallFragmentCallbackListener,QBRTCClie
         Log.e("REJECT","Rejected Call")
         callService.rejectCurrentSession(HashMap())
     }
+
+    //////////////////////////////ConversationFragmentCallback//////////////////////////////
     private fun hangUpCurrentSession() {
         callService.hangUpCurrentSession(java.util.HashMap())
         finish()
     }
+    override fun removeSessionEventsListener(eventsCallback: QBRTCSessionEventsCallback?) {
+
+    }
+
+    override fun removeSessionStateListener(clientConnectionCallbacks: QBRTCSessionStateCallback<*>?) {
+
+    }
+
+    override fun removeVideoTrackListener(callback: QBRTCClientVideoTracksCallbacks<QBRTCSession>?) {
+
+    }
+
+    override fun addVideoTrackListener(callback: QBRTCClientVideoTracksCallbacks<QBRTCSession>?) {
+        callService.addVideoTrackListener(callback)
+    }
+    override fun addSessionCallbacksListener(callback: QBRTCSessionStateCallback<*>?) {
+        callService.addSessionStateListener(callback)
+    }
+
+    override fun addSessionEventsListener(callback: QBRTCSessionEventsCallback) {
+       callService.addSessionEventsListener(callback)
+    }
+    override fun getLocalVideoTrack(): QBRTCVideoTrack {
+        return VideoTrackCallBackListener.getLocalVideoTrack()
+    }
+
+    override fun getRemoteVideoTrack(): QBRTCVideoTrack {
+        return VideoTrackCallBackListener.getRemoteVideoTrack()
+    }
+
+
     ////////////////////////////// QBRTCClientSessionCallbacks //////////////////////////////
     override fun onUserNotAnswer(p0: QBRTCSession?, p1: Int?) {
 
     }
 
     override fun onSessionStartClose(p0: QBRTCSession?) {
-        callService.removeCurrentSession()
+
     }
 
     override fun onReceiveHangUpFromUser(p0: QBRTCSession?, p1: Int?, p2: MutableMap<String, String>?) {
@@ -125,8 +187,22 @@ class CallActivity : BaseActivity(),IncomeCallFragmentCallbackListener,QBRTCClie
     }
 
     override fun onCallRejectByUser(p0: QBRTCSession?, p1: Int?, p2: MutableMap<String, String>?) {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+
+    }
+    override fun onDisconnectedFromUser(p0: QBRTCSession?, p1: Int?) {
+
     }
 
+    override fun onConnectedToUser(p0: QBRTCSession?, p1: Int?) {
+
+    }
+
+    override fun onConnectionClosedForUser(p0: QBRTCSession?, p1: Int?) {
+
+    }
+
+    override fun onStateChanged(p0: QBRTCSession?, p1: BaseSession.QBRTCSessionState?) {
+
+    }
 
 }

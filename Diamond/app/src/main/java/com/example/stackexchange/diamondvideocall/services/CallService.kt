@@ -10,20 +10,16 @@ import android.os.IBinder
 import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationCompat
 import com.example.stackexchange.diamondvideocall.R
-import com.example.stackexchange.diamondvideocall.utils.VideoTrackCallBackListener
 import com.example.stackexchange.diamondvideocall.others.Constant.*
 import com.example.stackexchange.diamondvideocall.ui.videocall.CallActivity
-import com.example.stackexchange.diamondvideocall.utils.RingtonePlayer
-import com.example.stackexchange.diamondvideocall.utils.SessionEventCallBack
-import com.example.stackexchange.diamondvideocall.utils.WebRtcSessionManager
+import com.example.stackexchange.diamondvideocall.utils.*
+import com.quickblox.chat.QBChatService
 import com.quickblox.videochat.webrtc.*
 import com.quickblox.videochat.webrtc.callbacks.*
 import com.quickblox.videochat.webrtc.exception.QBRTCSignalException
+import org.jivesoftware.smack.ConnectionListener
 
-class CallService :Service(),
-    QBRTCSessionStateCallback<QBRTCSession>,
-    QBRTCSignalingCallback{
-
+class CallService :Service(), QBRTCSignalingCallback {
 
     lateinit var notificationManager : NotificationManager
     private var ringtonePlayer: RingtonePlayer? = null
@@ -53,17 +49,53 @@ class CallService :Service(),
         super.onCreate()
     }
     fun initListeners(){
-        currentSession!!.addVideoTrackCallbacksListener(VideoTrackCallBackListener)
-        currentSession!!.addSessionCallbacksListener(this)
-        currentSession!!.addEventsCallback(SessionEventCallBack)
-        currentSession!!.addSignalingCallback(this)
-
+        addSessionStateListener(SessionConnectCallBack)
+        addVideoTrackListener(VideoTrackCallBackListener)
+        addSessionEventsListener(SessionEventCallBack)
+        addSignalingListener(this)
     }
     fun removeCurrentSession() {
-        currentSession!!.removeSignalingCallback(this)
-        currentSession!!.removeSessionCallbacksListener(this)
-        QBRTCClient.getInstance(this).removeSessionsCallbacksListener(SessionEventCallBack)
+        removeSessionStateListener(SessionConnectCallBack)
+        removeSessionEventsListener(SessionEventCallBack)
+        removeVideoTrackListener(VideoTrackCallBackListener)
+        removeSignalingListener(this)
 
+    }
+    fun addConnectionListener(connectionListener: ConnectionListener?) {
+        QBChatService.getInstance().addConnectionListener(connectionListener)
+    }
+    fun addSessionStateListener(callback: QBRTCSessionStateCallback<*>?) {
+        currentSession?.addSessionCallbacksListener(callback)
+    }
+
+    fun addVideoTrackListener(callback: QBRTCClientVideoTracksCallbacks<QBRTCSession>?) {
+        currentSession?.addVideoTrackCallbacksListener(callback)
+    }
+
+    fun addSessionEventsListener(callback: QBRTCSessionEventsCallback?) {
+        rtcClient.addSessionCallbacksListener(callback)
+    }
+
+    fun addSignalingListener(callback: QBRTCSignalingCallback?) {
+        currentSession?.addSignalingCallback(callback)
+    }
+
+    fun removeSessionStateListener(callback: QBRTCSessionStateCallback<*>?) {
+        currentSession?.removeSessionCallbacksListener(callback)
+    }
+    fun removeVideoTrackListener(callback: QBRTCClientVideoTracksCallbacks<QBRTCSession>?) {
+        currentSession?.removeVideoTrackCallbacksListener(callback)
+    }
+    fun removeSignalingListener(callback: QBRTCSignalingCallback?) {
+        currentSession?.removeSignalingCallback(callback)
+    }
+    fun removeConnectionListener(connectionListener: ConnectionListener?) {
+        QBChatService.getInstance().removeConnectionListener(connectionListener)
+    }
+
+
+    fun removeSessionEventsListener(callback: QBRTCSessionEventsCallback?) {
+        rtcClient.removeSessionsCallbacksListener(callback)
     }
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val notification = initNotification()
@@ -165,21 +197,5 @@ class CallService :Service(),
     override fun onErrorSendingPacket(p0: QBSignalingSpec.QBSignalCMD?, p1: Int?, p2: QBRTCSignalException?) {
 
     }
-    override fun onDisconnectedFromUser(p0: QBRTCSession?, p1: Int?) {
-
-    }
-
-    override fun onConnectedToUser(p0: QBRTCSession?, p1: Int?) {
-
-    }
-
-    override fun onConnectionClosedForUser(p0: QBRTCSession?, p1: Int?) {
-
-    }
-
-    override fun onStateChanged(p0: QBRTCSession?, p1: BaseSession.QBRTCSessionState?) {
-
-    }
-
 
 }

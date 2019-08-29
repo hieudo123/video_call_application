@@ -24,7 +24,7 @@
             </intent-filter>
         </activity>
         <activity android:name=".ui.main.MainActivity"></activity>
-        <service android:name=".services.CallService" android:enabled="true"/>
+        <service android:name=".services.CallService" android:enabled="true" />
         <service android:name=".services.LoginService" android:enabled="true"/>
         <activity android:name=".ui.videocall.CallActivity"/>
     </application>

@@ -1,5 +1,6 @@
 package com.example.stackexchange.diamondvideocall.services
 
+import android.app.Application
 import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
@@ -26,6 +27,9 @@ import com.quickblox.core.exception.QBResponseException
 import com.quickblox.users.model.QBUser
 import com.quickblox.videochat.webrtc.QBRTCClient
 import com.quickblox.videochat.webrtc.QBRTCConfig
+import android.os.SystemClock
+import android.app.AlarmManager
+import android.widget.Toast
 
 
 class LoginService: Service(){
@@ -66,8 +70,16 @@ class LoginService: Service(){
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        parseIntentExtras(intent)
+        if(SharedPrefUtils.getString(this, Constant.USER_NAME).isNotEmpty() && SharedPrefUtils.getString(this, Constant.USER_PASS).isNotEmpty()){
+            val userName = SharedPrefUtils.getString(this, Constant.USER_NAME)
+            val password : String = SharedPrefUtils.getString(this, Constant.USER_PASS)
+            currentUser = QBUser(userName,password)
+        }
+        else{
+            parseIntentExtras(intent)
+        }
         startLoginToChat()
+        Toast.makeText(this,"Receive Call",Toast.LENGTH_SHORT).show()
         return Service.START_REDELIVER_INTENT
     }
     private fun startLoginToChat() {
@@ -122,5 +134,21 @@ class LoginService: Service(){
         QBRTCConfig.setDebugEnabled(true)
         rtcClient.addSessionCallbacksListener(WebRtcSessionManager)
         rtcClient.prepareToProcessCalls()
+    }
+
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        super.onTaskRemoved(rootIntent)
+        val restartServiceIntent : Intent = Intent(applicationContext, this.javaClass)
+        restartServiceIntent.setPackage(packageName)
+        val restartServicePendingIntent : PendingIntent = PendingIntent.getService(applicationContext,
+            1,
+            restartServiceIntent,
+            PendingIntent.FLAG_ONE_SHOT)
+        val alarmService = applicationContext.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        alarmService.set(
+            AlarmManager.ELAPSED_REALTIME,
+            SystemClock.elapsedRealtime() + 1000,
+            restartServicePendingIntent
+        )
     }
 }
