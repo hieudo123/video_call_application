@@ -31,4 +31,6 @@
     <string name="message">Notification</string>
     <string name="notification_title">You have an active call</string>
     <string name="notification_text">Touch takes you back to the call %1$s</string>
+    <string name="user_id">UserID</string>
+    <string name="make_call">Call</string>
 </resources>

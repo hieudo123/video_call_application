@@ -6,7 +6,6 @@
         android:orientation="vertical"
         android:layout_width="match_parent"
         android:layout_height="match_parent">
-
     <Button
             android:text="@string/login"
             android:layout_width="0dp"
@@ -33,7 +32,7 @@
             app:layout_constraintStart_toStartOf="parent"
             android:hint="@string/hint_user"
             app:layout_constraintHorizontal_bias="0.0"
-            android:layout_marginTop="@dimen/w100"
+            android:layout_marginTop="@dimen/w70"
             app:layout_constraintTop_toBottomOf="@+id/imageView"
             android:textColorHint="@color/colorWhite"
             android:paddingBottom="@dimen/w15" android:textColor="@color/colorWhite"/>

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-          package="com.example.stackexchange.diamondvideocall">
+          xmlns:tools="http://schemas.android.com/tools" package="com.example.stackexchange.diamondvideocall">
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
@@ -8,6 +8,8 @@
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+
+
     <application
             android:name=".ui.base.MyApplication"
             android:allowBackup="true"
@@ -25,7 +27,7 @@
         </activity>
         <activity android:name=".ui.main.MainActivity"></activity>
         <service android:name=".services.CallService" android:enabled="true" />
-        <service android:name=".services.LoginService" android:enabled="true"/>
+        <service android:name=".services.LoginService" android:enabled="true" ></service>
         <activity android:name=".ui.videocall.CallActivity"/>
     </application>
 

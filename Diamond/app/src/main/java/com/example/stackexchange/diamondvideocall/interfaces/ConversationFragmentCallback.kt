@@ -25,4 +25,8 @@ interface ConversationFragmentCallback {
     //Get
     fun getLocalVideoTrack():QBRTCVideoTrack
     fun getRemoteVideoTrack():QBRTCVideoTrack
+
+    //set
+    fun setAudioEnabled(isAudioEnabled:Boolean)
+    fun startCall(userInfo: Map<String, String>)
 }

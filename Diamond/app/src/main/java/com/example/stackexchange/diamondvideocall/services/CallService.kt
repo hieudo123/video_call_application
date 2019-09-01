@@ -7,6 +7,7 @@ import android.graphics.BitmapFactory
 import android.os.Binder
 import android.os.Build
 import android.os.IBinder
+import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationCompat
 import com.example.stackexchange.diamondvideocall.R
@@ -20,7 +21,7 @@ import com.quickblox.videochat.webrtc.exception.QBRTCSignalException
 import org.jivesoftware.smack.ConnectionListener
 
 class CallService :Service(), QBRTCSignalingCallback {
-
+    private lateinit var appRTCAudioManager: AppRTCAudioManager
     lateinit var notificationManager : NotificationManager
     private var ringtonePlayer: RingtonePlayer? = null
     private val callServiceBinder: CallServiceBinder = CallServiceBinder()
@@ -43,22 +44,48 @@ class CallService :Service(), QBRTCSignalingCallback {
 
     override fun onCreate() {
         currentSession = WebRtcSessionManager.getCurrentSession()
+
         ringtonePlayer = RingtonePlayer(this,R.raw.beep)
         iniRTCClient()
         initListeners()
+        initAudioManager()
         super.onCreate()
     }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        removeCurrentSession()
+    }
+
+
     fun initListeners(){
         addSessionStateListener(SessionConnectCallBack)
         addVideoTrackListener(VideoTrackCallBackListener)
         addSessionEventsListener(SessionEventCallBack)
         addSignalingListener(this)
     }
+    fun initAudioManager() {
+        appRTCAudioManager = AppRTCAudioManager.create(this)
+
+        appRTCAudioManager.setOnWiredHeadsetStateListener { plugged, hasMicrophone ->
+
+        }
+
+        appRTCAudioManager.setBluetoothAudioDeviceStateListener { connected ->
+
+        }
+
+        appRTCAudioManager.start { selectedAudioDevice, availableAudioDevices ->
+            Toast.makeText(this,"Switch Speaker enabled",Toast.LENGTH_SHORT).show()
+        }
+    }
+
     fun removeCurrentSession() {
         removeSessionStateListener(SessionConnectCallBack)
         removeSessionEventsListener(SessionEventCallBack)
         removeVideoTrackListener(VideoTrackCallBackListener)
         removeSignalingListener(this)
+        currentSession = null
 
     }
     fun addConnectionListener(connectionListener: ConnectionListener?) {
@@ -172,7 +199,6 @@ class CallService :Service(), QBRTCSignalingCallback {
     fun acceptCall(userInfo: Map<String, String>) {
         currentSession?.acceptCall(userInfo)
     }
-
     fun startCall(userInfo: Map<String, String>) {
         currentSession?.startCall(userInfo)
     }

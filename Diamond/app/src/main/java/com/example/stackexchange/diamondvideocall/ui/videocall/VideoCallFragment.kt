@@ -1,6 +1,10 @@
 package com.example.stackexchange.diamondvideocall.ui.videocall
 
 import android.app.Activity
+import android.graphics.BitmapFactory
+import android.graphics.ImageFormat
+import android.graphics.Rect
+import android.graphics.YuvImage
 import android.os.Bundle
 import android.os.Handler
 import android.os.Message
@@ -15,6 +19,7 @@ import android.widget.ToggleButton
 import androidx.fragment.app.Fragment
 import com.example.stackexchange.diamondvideocall.R
 import com.example.stackexchange.diamondvideocall.interfaces.ConversationFragmentCallback
+import com.example.stackexchange.diamondvideocall.services.CallService
 import com.example.stackexchange.diamondvideocall.ui.base.BaseFragment
 import com.example.stackexchange.diamondvideocall.utils.VideoTrackCallBackListener
 import com.example.stackexchange.diamondvideocall.utils.WebRtcSessionManager
@@ -26,17 +31,17 @@ import com.quickblox.videochat.webrtc.callbacks.*
 import com.quickblox.videochat.webrtc.exception.QBRTCSignalException
 import com.quickblox.videochat.webrtc.view.QBRTCSurfaceView
 import com.quickblox.videochat.webrtc.view.QBRTCVideoTrack
-import org.webrtc.EglBase
-import org.webrtc.RendererCommon
-import org.webrtc.SurfaceViewRenderer
+import org.webrtc.*
+import java.io.ByteArrayOutputStream
 import java.lang.ref.WeakReference
 
-class VideoCallFragment:BaseFragment(), View.OnClickListener,
+class VideoCallFragment(var isInComming: Boolean):BaseFragment(), View.OnClickListener,
     QBRTCClientVideoTracksCallbacks<QBRTCSession>,
     QBRTCClientSessionCallbacks,
     QBRTCSessionStateCallback<QBRTCSession>,
     QBRTCSessionConnectionCallbacks,
-    QBRTCSignalingCallback {
+    QBRTCSignalingCallback, VideoSink {
+
     private var conversationFragmentCallback: ConversationFragmentCallback?= null
     private var isLocalVideoFullScreen: Boolean = false
     private lateinit var mHandler : Handler
@@ -67,6 +72,7 @@ class VideoCallFragment:BaseFragment(), View.OnClickListener,
         }
     }
     fun init(view : View){
+        conversationFragmentCallback!!.setAudioEnabled(true)
         localVideoView = view.findViewById(R.id.localView)
         toggle_startChat = view.findViewById(R.id.toggle_start_chat)
         remoteFullScreenVideoView = view.findViewById(R.id.opponentView)
@@ -82,19 +88,35 @@ class VideoCallFragment:BaseFragment(), View.OnClickListener,
         initCorrectSizeForLocalView()
         mHandler.postDelayed({
             startToCall()
-        }, 8000)
+        }, 800)
 
     }
     internal class FragmentLifeCycleHandler(fragment: Fragment) : Handler() {
 
         private val fragmentRef: WeakReference<Fragment> = WeakReference(fragment)
-
         override fun dispatchMessage(msg: Message) {
             val fragment = fragmentRef.get() ?: return
             if (fragment.isAdded && fragment.activity != null) {
                 super.dispatchMessage(msg)
             }
         }
+    }
+    override fun onFrame(frame: VideoFrame?) {
+//            getFrameFormVideoFrame(frame!!)
+    }
+    fun getFrameFormVideoFrame(frame: VideoFrame){
+        var data = frame!!.buffer.toI420().dataU
+        var bytes : ByteArray = ByteArray(data.remaining())
+        var out : ByteArrayOutputStream = ByteArrayOutputStream()
+        var yuvImage : YuvImage = YuvImage(bytes, ImageFormat.NV21,frame.rotatedWidth,frame.rotatedHeight,null)
+        yuvImage.compressToJpeg(
+            Rect(0,0,frame.rotatedWidth,
+                frame.rotatedHeight), 90, out)
+        var imageBytes = out.toByteArray()
+        var bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size);
+        Log.e("AAA","$bitmap")
+        out.flush()
+        out.close()
     }
     fun initCorrectSizeForLocalView() {
         val params = localVideoView.layoutParams
@@ -108,20 +130,24 @@ class VideoCallFragment:BaseFragment(), View.OnClickListener,
         localVideoView.layoutParams = params
     }
     fun startToCall(){
-        val localVideoTrack = conversationFragmentCallback!!.getLocalVideoTrack()
-        onLocalVideoTrackReceive(null,localVideoTrack)
-
-        val remoteVideoTrack : QBRTCVideoTrack = conversationFragmentCallback!!.getRemoteVideoTrack()
-        onRemoteVideoTrackReceive(null,remoteVideoTrack,1)
+        if(isInComming){
+            val localVideoTrack = conversationFragmentCallback!!.getLocalVideoTrack()
+            onLocalVideoTrackReceive(null,localVideoTrack)
+            val remoteVideoTrack : QBRTCVideoTrack = conversationFragmentCallback!!.getRemoteVideoTrack()
+            onRemoteVideoTrackReceive(null,remoteVideoTrack,1)
+        }
     }
-    fun addListener() {
-//        conversationFragmentCallback?.addSessionCallbacksListener(this)
-//        conversationFragmentCallback?.addSessionEventsListener(this)
-//        conversationFragmentCallback?.addVideoTrackListener(VideoTrackCallBackListener)
+    fun addListeners() {
+        conversationFragmentCallback?.addSessionCallbacksListener(this)
+        conversationFragmentCallback?.addSessionEventsListener(this)
+        if(isInComming)
+            conversationFragmentCallback?.addVideoTrackListener(VideoTrackCallBackListener)
+        else
+            conversationFragmentCallback?.addVideoTrackListener(this)
 
     }
 
-    fun releaseCurrentSession() {
+    fun removeListeners() {
         conversationFragmentCallback?.removeSessionStateListener(this)
         conversationFragmentCallback?.removeSessionEventsListener(this)
         conversationFragmentCallback?.removeVideoTrackListener(this)
@@ -131,6 +157,7 @@ class VideoCallFragment:BaseFragment(), View.OnClickListener,
                       remoteRenderer: Boolean) {
         videoTrack.removeRenderer(videoTrack.renderer)
         videoTrack.addRenderer(videoView)
+        videoTrack.addRenderer(this)
         if (!remoteRenderer) {
             updateVideoView(videoView, isCurrentCameraFront, RendererCommon.ScalingType.SCALE_ASPECT_FILL)
         }
@@ -145,7 +172,9 @@ class VideoCallFragment:BaseFragment(), View.OnClickListener,
     override fun onClick(view: View?) {
         when (view!!.id) {
             R.id.button_hangup_call -> {
+                CallService.stop(activity as Activity)
                 conversationFragmentCallback?.onHangUpCurrentSession()
+
             }
         }
     }
@@ -200,7 +229,7 @@ class VideoCallFragment:BaseFragment(), View.OnClickListener,
 
     }
 
-    override fun onConnectedToUser(p0: QBRTCSession?, p1: Int?) {
+    override fun onConnectedToUser(qbrtcSession: QBRTCSession?, p1: Int?) {
 
     }
 
@@ -238,7 +267,13 @@ class VideoCallFragment:BaseFragment(), View.OnClickListener,
     }
     override fun onStart() {
         super.onStart()
-        addListener()
+        conversationFragmentCallback?.startCall(HashMap())
+        addListeners()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        removeListeners()
     }
 
 }

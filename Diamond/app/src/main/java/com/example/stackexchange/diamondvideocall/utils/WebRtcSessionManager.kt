@@ -8,7 +8,6 @@ import com.quickblox.videochat.webrtc.callbacks.QBRTCClientSessionCallbacksImpl
 
 object WebRtcSessionManager : QBRTCClientSessionCallbacksImpl() {
     private val TAG = WebRtcSessionManager::class.java.simpleName
-
     private var currentSession: QBRTCSession? = null
 
     fun getCurrentSession(): QBRTCSession? {

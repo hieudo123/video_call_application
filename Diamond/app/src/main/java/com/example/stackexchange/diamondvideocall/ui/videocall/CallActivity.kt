@@ -32,7 +32,7 @@ class CallActivity : BaseActivity(),
     QBRTCSessionStateCallback<QBRTCSession> {
 
 
-
+    private var isInComingCall: Boolean = false
     override fun onHangUpCurrentSession() {
         hangUpCurrentSession()
     }
@@ -52,17 +52,22 @@ class CallActivity : BaseActivity(),
         }
     }
     fun initScreen(){
+        isInComingCall = intent?.extras?.getBoolean(EXTRA_IS_INCOMING_CALL) ?: true
         if(SessionConnectCallBack.isCallMod())
-            startVideoCallFragment()
-        else
-            startIncomeFragment()
+            startVideoCallFragment(false)
+        else {
+            if (isInComingCall)
+                startIncomeFragment()
+            else
+                startVideoCallFragment(false)
+        }
         addLinteners()
     }
     fun startIncomeFragment(){
         addFragment(R.id.frmContainer,IncomeFragment(),false)
     }
-    private fun startVideoCallFragment() {
-        addFragment(R.id.frmContainer,VideoCallFragment(),false)
+    private fun startVideoCallFragment(isInComing:Boolean) {
+        addFragment(R.id.frmContainer,VideoCallFragment(isInComing),false)
     }
     fun bindCallService(){
         callServiceConnection = object  : ServiceConnection{
@@ -112,28 +117,36 @@ class CallActivity : BaseActivity(),
     override fun onAcceptCurrentSession() {
         Log.e("ACCEPT","Accepted Call")
         callService.acceptCall(HashMap())
-        startVideoCallFragment()
+        startVideoCallFragment(true)
     }
     override fun onRejectCurrentSession() {
         Log.e("REJECT","Rejected Call")
         callService.rejectCurrentSession(HashMap())
     }
 
+    override fun onDestroy() {
+        hangUpCurrentSession()
+        super.onDestroy()
+    }
     //////////////////////////////ConversationFragmentCallback//////////////////////////////
     private fun hangUpCurrentSession() {
-        callService.hangUpCurrentSession(java.util.HashMap())
-        finish()
+        if(!callService.hangUpCurrentSession(java.util.HashMap()))
+            finish()
     }
     override fun removeSessionEventsListener(eventsCallback: QBRTCSessionEventsCallback?) {
-
+         callService.removeSessionEventsListener(eventsCallback)
     }
 
     override fun removeSessionStateListener(clientConnectionCallbacks: QBRTCSessionStateCallback<*>?) {
-
+        callService.removeSessionStateListener(clientConnectionCallbacks)
     }
 
     override fun removeVideoTrackListener(callback: QBRTCClientVideoTracksCallbacks<QBRTCSession>?) {
+        callService.removeVideoTrackListener(callback)
+    }
 
+    override fun getRemoteVideoTrack(): QBRTCVideoTrack {
+        return VideoTrackCallBackListener.getRemoteVideoTrack()
     }
 
     override fun addVideoTrackListener(callback: QBRTCClientVideoTracksCallbacks<QBRTCSession>?) {
@@ -150,10 +163,12 @@ class CallActivity : BaseActivity(),
         return VideoTrackCallBackListener.getLocalVideoTrack()
     }
 
-    override fun getRemoteVideoTrack(): QBRTCVideoTrack {
-        return VideoTrackCallBackListener.getRemoteVideoTrack()
+    override fun setAudioEnabled(isAudioEnabled: Boolean) {
+        callService.setAudioEnabled(isAudioEnabled)
     }
-
+    override fun startCall(userInfo: Map<String, String>) {
+        callService.startCall(userInfo)
+    }
 
     ////////////////////////////// QBRTCClientSessionCallbacks //////////////////////////////
     override fun onUserNotAnswer(p0: QBRTCSession?, p1: Int?) {
